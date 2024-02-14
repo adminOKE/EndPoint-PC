@@ -1,0 +1,54 @@
+## by OKE le 06/10/2022                                                    ##
+#petite Console interactif pour sortir un device du domaine
+
+#check admion si Non Pass Admin
+if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs } 
+
+
+function Show-Menu
+{
+    param (
+        [string]$Title = 'My Menu'
+    )
+    Clear-Host
+    Write-Host "================ $Title ================"
+    
+    Write-Host "1: Press '1' Creation AdminLOCAL."
+    Write-Host "2: Press '2' Sors le poste du Domaine."
+    Write-Host "3: Press '3' Verifier si compte Admin local present"
+    Write-Host "Q: Press 'Q' to quit."
+
+    Write-Host "_________________________________________"
+}
+
+ Show-Menu -Title "Kit Hors du DOMAINE"
+
+Write-Host 
+do
+ {
+     Show-Menu
+     $selection = Read-Host "Please make a selection"
+     switch ($selection)
+     {
+         '1' {
+    $pass = read-host "le mdp ?"     
+$PASSWORD= ConvertTo-SecureString –AsPlainText -Force -String $pass
+New-LocalUser -Name "MarAdminLocal" -Description "admin local temporaire" -Password $PASSWORD
+Add-LocalGroupMember -Member "AdminLocal" -Group administrateurs
+             
+         } '2' {
+         
+ #$credential = Get-Credential -Message "peux importe les identifiants!"
+#Remove-Computer -ComputerName $env:COMPUTERNAME -LocalCredential $credential  -Force
+$ObjMachine = gwmi Win32_ComputerSystem
+$UnJoinStatus = $ObjMachine.UnjoinDomainOrWorkgroup($null,$null,0) 
+
+             'You chose option #2'
+         } '3' {
+$adminLocal = (Get-LocalUser -name MarAdminLocal -ErrorAction SilentlyContinue)
+             'You chose option #3'
+         }
+     }
+     pause
+ }
+ until ($selection -eq 'q')
