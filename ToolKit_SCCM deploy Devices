@@ -1,0 +1,243 @@
+#by OKE le 05/2022
+# le 13/05/2022 Voici une petite console SCCM permettant de rechercher, de supprimer ou d'ajouter un poste Poste sur SCCM
+# 
+#le 07/07/2022  ajout de la fonction format-macaddress, qui permet de formater correctement entrée reçu de "address MAC"
+               # ajout de la date et de l'heure de creation de poste
+####### adminOKE #######
+
+
+Write-Host "___(¯`•._.•[CONSOLE Proxy v1.0.0.!]>•._.•´¯)___" -ForegroundColor Yellow    
+
+#check admin si NOK pass admin
+if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit } 
+
+
+
+
+#region fonctions
+   function connect-SCCM{
+
+$SCCMserver = "***.fr"
+
+$SiteCode = "CMI" # Code du site 
+$ProviderMachineName = "***.fr" 
+
+$initParams = @{}
+if((Get-Module ConfigurationManager) -eq $null) {
+    Import-Module "$($ENV:SMS_ADMIN_UI_PATH)\..\ConfigurationManager.psd1" @initParams 
+}
+# Connectez-vous au lecteur du site s’il n’est pas présent
+if((Get-PSDrive -Name $SiteCode -PSProvider CMSite -ErrorAction SilentlyContinue) -eq $null) {
+    New-PSDrive -Name $SiteCode -PSProvider CMSite -Root $ProviderMachineName @initParams
+}
+
+Set-Location "$($SiteCode):\" @initParams}
+
+function write-VRH{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$True,
+                    ValueFromPipeline=$true,
+                    ValuefromPipelineByPropertyName=$true)]        
+        [ValidateLength(10, 10)]
+        [ValidatePattern('[0-9]')]
+        [string[]]$nom
+        )
+
+
+
+
+
+write-host $nom
+
+}
+
+function Format-MacAddress {
+<#
+
+.NOTES
+    # Inspired and based on Clean-MacAddress.ps1 by
+    # Francois-Xavier Cat
+    # www.lazywinadmin.com
+    # @lazywinadm
+#>
+
+    #region Parameter
+    [OutputType('String')]
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Position=0,HelpMessage='Please enter a MAC address (12 hex)',Mandatory,ValueFromPipeline)]
+        [Alias('Address')]
+        [String[]] $MacAddress,
+
+        [ValidateSet(':', 'None', '.', '-', ' ', 'Space', ';')]
+        [Alias('Delimiter')]
+        [string] $Separator = ':',
+
+        [ValidateSet('Ignore', 'Upper', 'Uppercase', 'Lower', 'Lowercase')]
+        [string] $Case = 'Lower',
+
+        [ValidateSet(2,3,4,6)]
+        [int] $Split = 2,
+
+        [switch] $IncludeOriginal
+    )
+    #endregion Parameter
+
+    begin {
+        if ($Separator -eq 'Space') { $Separator = ' ' }
+        Write-Verbose -Message "Starting $($MyInvocation.Mycommand)"
+    }
+
+    process {
+        foreach ($Mac in $MacAddress)
+        {
+            $oldMac = $Mac
+            $Mac = $Mac -replace '-', '' #Replace Dash
+            $Mac = $Mac -replace ':', '' #Replace Colon
+            $Mac = $Mac -replace ';', '' #Replace semicolon
+            $Mac = $Mac -replace '/s', '' #Remove whitespace
+            $Mac = $Mac -replace ' ', '' #Remove whitespace
+            $Mac = $Mac -replace '\.', '' #Remove dots
+            $Mac = $Mac.trim() #Remove space at the beginning
+            $Mac = $Mac.trimend() #Remove space at the end
+            switch ($Case) {
+                'Upper'     { $Mac = $mac.toupper() }
+                'Uppercase' { $Mac = $mac.toupper() }
+                'Lower'     { $Mac = $mac.tolower() }
+                'Lowercase' { $Mac = $mac.tolower() }
+                'Ignore'    { }
+                Default     { }
+            }
+
+            if ($Separator -ne 'None') {
+                switch ($Split) {
+                    2       { $Mac = $Mac -replace '(..(?!$))', "`$1$Separator" }
+                    3       { $Mac = $Mac -replace '(...(?!$))', "`$1$Separator" }
+                    4       { $Mac = $Mac -replace '(....(?!$))', "`$1$Separator" }
+                    6       { $Mac = $Mac -replace '(......(?!$))', "`$1$Separator" }
+                    default { $Mac = $Mac -replace '(..(?!$))', "`$1$Separator" }
+                }
+            }
+
+            if ( -not ($IncludeOriginal) ) {
+                write-output -InputObject $Mac
+            } else {
+                $prop = @{ OriginalMac = $oldMac ; FormattedMac = $mac   }
+                $obj = new-object -TypeName psobject -Property $prop
+                write-output -InputObject $obj
+            }
+        }
+    } #EndBlock Process
+
+    end {
+        Write-Verbose -Message "Ending $($MyInvocation.Mycommand)"
+    }
+
+} #EndFunction Format-MacAddress
+
+
+#endregion
+
+
+
+
+
+
+
+  Write-Host "choix"
+  write-host ""
+
+  Write-Host "1 ---> Recherche Poste sur SCCM" -ForegroundColor Yellow
+  Write-Host ""
+  Write-Host "2 ----> Supprimer Poste dans SCCM" -ForegroundColor red
+  Write-Host ""
+  Write-Host "3 ----> Ajout d'un Poste dans SCCM" -ForegroundColor Yellow
+  Write-Host ""
+  write-host "q pour quitter"
+
+do{
+
+$choix = Read-Host "Choisir une commande :"
+
+switch ($choix){
+#region SCCM
+'1'{
+#region connexion a SCCM
+
+
+#endregion
+
+
+connect-SCCM 
+$PC = Read-Host "nom de POSTE ou MAC address du POSTE?"
+if ($PC -match "^(NOM)[0-9][0-9][0-9][0-9][0-9]" )
+{ $poste = get-cmdevice -name $PC  -Resource | Select-Object Name }
+else
+{
+    Write-Host "$pc format incorrect" -ForegroundColor Yellow 
+}
+
+
+
+if ($poste.Name -eq $pc)
+    {Write-Host "Poste present dans SCCM" -ForegroundColor Yellow}
+else
+    {Write-Host "poste non present dans SCCM" -ForegroundColor Red}
+
+sl c:\temp }
+#endregion
+
+'2'{ #Supprimer un poste dans SCCM
+connect-SCCM
+$PC = Read-Host "Le nom du POSTE ?"
+remove-CMDevice -deviceName $PC -confirm
+
+sl c:\temp 
+
+
+}
+#region ajout poste
+'3' 
+{
+
+
+
+
+
+connect-SCCM
+$ComputerName = Read-Host "Nom du PC ?"
+if ($ComputerName -match "^(NOM)[0-9][0-9][0-9][0-9][0-9]" )
+{ $Mac = Read-host "MAC ?" }
+else
+{
+    Write-Host "$ComputerName format incorrect" -ForegroundColor Yellow 
+}
+
+
+
+
+$MacAddress =  Format-MacAddress "$($Mac)"
+
+
+Import-CMComputerInformation -CollectionName "Nom-collection-deploiement" -ComputerName "$ComputerName" -MacAddress "$($MacAddress)" 
+$date = Get-Date
+write-host "$ComputerName avec la MAC $($MacAddress) le $date" -ForegroundColor Yellow
+
+
+sl c:\temp 
+
+}
+#endregion
+
+  'q'{ exit }
+
+}}
+until($choix -eq 'q') 
+
+
+
+
+
+
