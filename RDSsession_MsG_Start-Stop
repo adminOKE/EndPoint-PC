@@ -1,0 +1,43 @@
+#  Contact les utilisateurs, leurs envoies un message et stop les session RDS
+##adminOKE###
+
+ if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit } 
+ 
+
+
+####  a faire un menu choix genre: 1 envoi message > 1A le nom du serveur > 1B quel message ||| 2 deconecte 2A quel serveur
+
+ #region message
+
+quser # sans param = user connecté sur le serveur 
+ $serveur = "_"
+ $serveur = $env:COMPUTERNAME
+ $session = "nom des sessions" # param apres Nom de serveur, ou en mode bucheron "*"
+ $msg = "_"
+
+ msg.exe /SERVER:$serveur "*" "$msg" 
+
+ #endregion message
+
+
+#region Stop session
+$serveur = "_"
+$serveur = $env:COMPUTERNAME
+$sessions = (Get-RDUserSession).UserName
+$sessions = (Get-RDUserSession).UserName | Where-Object {$_ -ne "$env:username"}
+#Invoke-RDUserLogoff -HostServer $serveur -UnifiedSessionID $session 
+foreach($session in $sessions)
+{
+    Invoke-RDUserLogoff -HostServer $serveur -UnifiedSessionID $session.UnifiedSessionId  -Force 
+}
+#endregion
+
+#region Autre
+qwinsta #quser  permet de voir
+rwinsta # permet de kill
+
+$sessions = qwinsta 
+
+
+
+#endregion AUtre
