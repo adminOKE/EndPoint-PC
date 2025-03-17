@@ -1,0 +1,348 @@
+##########################
+#
+#"Un petit outil qui permet de sauvegarder son état et d'éviter de perdre ses points lors de la mort dans les jeux où cela se produit normalement. Utilisé notamment dans les jeux FromSoftware et autres, il fonctionne simplement en récupérant le chemin des fichiers de sauvegarde."
+##########################
+############################################################
+# Adaptation graffick de mon script Kit G8m8ing en console interactive(multiple actions divers )
+# 
+# ls choix disponibles sont fonctionnels,
+# ayant modifier mes chemins de profils dans le registre e tmettant basé sur mon OS
+# pour une utilisation fonctionnel de mon code il faudra adapter les chemins (principalement les exe et les Sauvegardes)
+# note: les erreurs proviennent de l'outBox; seul la definiton de la fenetre est codé, les actions (retour console) ne sont pas (encore)faites
+#
+# h2o le 29/07/2022 Kit G8m8ing Graffik
+####################################################################################################
+# actions start ou Stop EldenRing, pAREFEU BLOQUE  un exe cracké(fais appel à un autre script que je n'ai pas inclus)
+#copie une sauvegarde d'eldenRing, ouvre le dossier de sauvegarde EldenRING, Restore la derniere sauvegarde d'eldenRING)
+
+
+        function Test-Admin {
+    $currentUser = New-Object Security.Principal.WindowsPrincipal $([Security.Principal.WindowsIdentity]::GetCurrent())
+  $currentUser.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
+}
+
+if ((Test-Admin) -eq $false)  {
+    if ($elevated)     {    } 
+    else {
+        Start-Process powershell.exe -Verb RunAs -ArgumentList ('-noprofile -noexit -file "{0}" -elevated' -f ($myinvocation.MyCommand.Definition))
+}
+exit
+}
+
+
+
+$x =  # the return variable which is updated in the OK Click event
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+
+function block-FireWallGame{
+<#
+.SYNOPSIS
+    ajout regle pare-FEU, interactif demande nom du jeu, ajouter le chemein d'installation de l'executable
+# ex: New-NetFirewallRule -Program "D:\Prg\Game.exe" -Direction Outbound -Profile Any -DisplayName 'Game' -Description "regle powershell" -Action Block
+    
+    supprime une regle du pare-FEU
+ex: Get-NetFirewallRule | where-Object {$_.DisplayName -like 'GAME*'} | Remove-NetFirewallRule
+#>
+
+    [CmdletBinding()]
+    Param(
+    [Parameter(Mandatory=$true,
+    HelpMessage="Renseigner le chemin de l'executable",
+    ValueFromPipeline=$true,
+    ValueFromPipelineByPropertyName=$true)]
+    [String]$Games,
+    [String]$nomGames
+    )
+       
+$Games = Read-host "le chemin de l'executable"
+$nomGames = read-host "Le nom du jeux ?"
+    
+    
+    
+    
+
+
+
+
+<#$Games = "C:\Games-install\Deathloop\Deathloop.exe"
+$nomGames = read-host "Le nom du jeux ?"
+#> 
+ 
+New-NetFirewallRule -Program $games -Profile Any -DisplayName "$nomGames" -Description "$nomGames" -Action Block
+
+
+
+# parefeu rapide parametre
+New-NetFirewallRule -Program "$Games" -DisplayName "$nomGames" -Profile Any -Action Block  -Direction Inbound -Description "$nomGames Entrée parefeu"
+New-NetFirewallRule -Program "$Games" -DisplayName "$nomGames" -Profile Any -Action Block  -Direction Outbound -Description "$nomGames sortie parefeu"
+
+}
+
+
+
+
+
+#region fenetre principal + bouton OK Cancel
+$objForm               = New-Object System.Windows.Forms.Form
+$objForm.Font          = [System.Drawing.Font]::new("Comic Sans MS", 12, [System.Drawing.FontStyle]::Bold)
+$objForm.Text          = "G8m3 tools by H2o"
+$objForm.Size          = New-Object System.Drawing.Size(300,400) #largeur, Longueur
+#$objForm.StartPosition = "CenterScreen"
+$objForm.BackColor     = 'black', 'red'
+$objForm.KeyPreview    = $True
+
+
+
+# Bouton OK
+$OKButton              = New-Object System.Windows.Forms.Button
+$OKButton.Location     = New-Object System.Drawing.Size(75,90)
+$OKButton.Size         = New-Object System.Drawing.Size(75,23)
+$OKButton.Text         = "OK"
+$OKButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+$OKButton.Add_Click({
+     $script:x = $objCombobox.SelectedItem  # il y a un objet de select
+     $objForm.Close()
+})
+#activation bouton OK
+#$objForm.Controls.Add($OKButton)
+
+#Bouton CANCEL
+$CancelButton = New-Object System.Windows.Forms.Button
+$CancelButton.Location = New-Object System.Drawing.Size(150,90)
+$CancelButton.Size = New-Object System.Drawing.Size(75,23)
+$CancelButton.Text = "Cancel"
+$CancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+#$CancelButto.KeyPreview    = $True
+#$objForm.Controls.Add($CancelButton)
+
+# using this, you do not need the Add_KeyDown events to react on clicking the OK or Cancel button
+$objForm.AcceptButton = $OKButton
+$objForm.CancelButton = $CancelButton
+#endregion fenetre principal + bouton OK cancel
+
+
+
+#region menu deroulant
+$objLabel = New-Object System.Windows.Forms.Label
+$objLabel.Location = New-Object System.Drawing.Size(10,20) 
+$objLabel.Size = New-Object System.Drawing.Size(460,20)
+$objLabel.Font = [System.Drawing.Font]::new("Comic Sans MS", 12, [System.Drawing.FontStyle]::Bold)
+$objLabel.Text = "Choisir une action"
+#$objLabel.
+$objForm.Controls.Add($objLabel) 
+
+
+$objCombobox = New-Object System.Windows.Forms.Combobox 
+$objCombobox.Location = New-Object System.Drawing.Size(10,40) 
+$objCombobox.Size = New-Object System.Drawing.Size(260,200) 
+$objCombobox.Font = [System.Drawing.Font]::new("Comic Sans MS", 11, [System.Drawing.FontStyle]::Italic)
+$objCombobox.Height = 70
+$objCombobox.BackColor= "Azure"
+$objCombobox.AutoSize = $true
+#endregion menu deroulant
+
+
+#region outbox
+
+$outputBox = New-Object System.Windows.Forms.TextBox 
+$outputBox.Location = New-Object System.Drawing.Size(10,120) 
+$outputBox.Size = New-Object System.Drawing.Size(260,200) 
+$outputBox.MultiLine = $True 
+$outputBox.ScrollBars = "Vertical"
+$outputBox.AutoSize = $true
+#voir pour agrandir le menu
+#$outputBox.AppendText($sortie de commande < en variable) >>> permet de recuperer le resultat du shell
+
+#$outputBox.AppendText("Creation)
+$textbox1.Text = $outputBox | Out-String -Width 100
+
+$Form.Controls.Add($outputBox)
+
+
+#endregion outbox
+
+
+
+#region enumeration
+
+#1
+[void] $objCombobox.Items.Add("Start Game")
+#2
+[void] $objCombobox.Items.Add("Stop Game")
+#3
+[void] $objCombobox.Items.Add("FireWall")
+#4
+[void] $objCombobox.Items.Add("Save")
+#5
+[void] $objCombobox.Items.Add("Dossier Save")
+#6
+[void] $objCombobox.Items.Add("BackUp Save")
+#7
+[void] $objCombobox.Items.Add("Sound EldenRing Mute")
+#8
+[void] $objCombobox.Items.Add("Gestionnaire de taches")
+#9
+[void] $objCombobox.Items.Add("Record sa session") 
+[void] $objCombobox.Items.Add("Save Dark-Souls III")
+[void] $objCombobox.Items.Add("Dossier Dark Soul III")
+[void] $objCombobox.Items.Add("BackUp Save Dark Soul III")
+[void] $objCombobox.Items.Add("Start Dark Soul III")
+[void] $objCombobox.Items.Add("Stop Dark Soul III")
+
+
+
+
+
+#10
+[void] $objCombobox.Items.Add("Start DEAD-CELLS")
+#11
+[void] $objCombobox.Items.Add("Stop DEAD-CELLS")
+#12
+[void] $objCombobox.Items.Add("Save DEAD-CELLS")  
+#13
+[void] $objCombobox.Items.Add("Backup Save DEAD-CELLS")
+#endregion
+
+
+
+#region Script Action
+$objCombobox.Add_SelectedIndexChanged({
+    # for demo, just write to console
+    Write-Host "Vous avez selectionné '$($this.SelectedItem)'" -ForegroundColor Cyan
+    # inside here, you can refer to the $objCombobox as $this
+    switch ($this.SelectedItem) {
+        #1
+        "Start Game" 
+        { cmd /c "C:\Users\$env:username\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Steam\ELDEN RING.url"
+        $outputBox.text = Write "jeux lancé" }                            # $env:USERPROFILE si conf par defaut
+        #2
+        "Stop Game" 
+        { get-process -Name eldenring |Stop-Process
+        $outputBox.text = Write "Jeux stoppé"   } 
+        #3
+        "FireWall" 
+        { powershell -file "$PSScriptRoot\FireWall.ps1"} # $env:USERPROFILE si conf par defaut
+        #4
+        "Save" 
+        { $source = "C:\Users\$env:username\AppData\Roaming\EldenRing"
+                                $destination = "D:\Profil\$env:username\Documents\Gaming\ELDEN RING" 
+                                 #$Nom = Read-Host "Voulez-vous nomer la sauvegarde ? "
+                                $dates = get-date -Format 'ddMMyyyy HHmm'
+Copy-Item -path $source -Destination $destination\$dates$Nom -Recurse
+$count = gci $destination
+ 
+                                
+        $outputBox.Text = Write "sauvegarde effectué le $dates, il y a actuellement $($count.Count) sauvegardes du jeux"}
+                        
+        #5
+        "Dossier Save" 
+        { explorer "D:\Profil\$env:username\Documents\Gaming\ELDEN RING" 
+        $outputBox.text = write "ouverture du dossier"}                    # $env:USERPROFILE si conf par defaut
+        #6
+        "BackUp Save" 
+        {$Source= "D:\Profil\$env:username\Documents\Gaming\ELDEN RING"                        # $env:USERPROFILE si conf par defaut
+                                $dest="C:\Users\$env:username\AppData\Roaming\EldenRing\" 
+                                $Save = gci $source\* | sort LastWriteTime | select -last 1
+                                Copy-Item $Save\* -Destination  $dest  -Force -Recurse
+        
+                                
+                               
+        $infoBackup= gci "D:\Profil\$env:username\Documents\Gaming\ELDEN RING"  | Sort-Object lastWriteTime |  Select-Object -Last 1 Name 
+        $outputBox.Text = Write "restauration de la sauvegarde du $($infoBackup.Name)"  }
+        #7
+        "Sound EldenRing Mute"
+         { sl $PSScriptRoot
+         .\nircmd.exe setappvolume EldenRing.exe 0
+         (new-object -com wscript.shell).SendKeys([char]173)
+         $outputBox.text = Write "volume  coupé" }
+         #9 DARKSOULS IIIIIIIIIIIIIII
+
+         "Save Dark-Souls III" {
+         $sourceDSIII = "C:\Users\$env:username\AppData\Roaming\DarkSoulsIII"
+         $destinationDsIII = "D:\Profil\$env:username\Documents\Gaming\DarkSoulsIII" 
+                                 #$Nom = Read-Host "Voulez-vous nomer la sauvegarde ? "
+                                $dates = get-date -Format 'ddMMyyyy HHmm'
+                                Copy-Item -path $sourceDSIII -Destination $destinationDsIII\$dates$Nom -Recurse
+$count = gci $destinationDsIII
+ 
+                                
+        $outputBox.Text = Write "sauvegarde effectué le $dates, il y a actuellement $($count.Count) sauvegardes du jeux"}
+
+
+        #5 DSIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+        "Dossier Dark Soul III" 
+        { explorer "D:\Profil\$env:username\Documents\Gaming\DarkSoulsIII" 
+        $outputBox.text = write "ouverture du dossier"}                    # $env:USERPROFILE si conf par defaut
+        #6 DSIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+        "BackUp Save Dark Soul III" 
+        {$SourceDsIII= "D:\Profil\$env:username\Documents\Gaming\DarkSoulsIII"                        # $env:USERPROFILE si conf par defaut
+                                $destDsIII="C:\Users\$env:username\AppData\Roaming\DarkSoulsIII\" 
+                                $SaveDsIII = gci $sourceDsIII\* | sort LastWriteTime | select -last 1
+                                Copy-Item $SaveDsIII\* -Destination  $destDsIII  -Force -Recurse
+        
+                                
+                               
+        $infoBackup= gci "D:\Profil\$env:username\Documents\Gaming\DarkSoulsIII"  | Sort-Object lastWriteTime |  Select-Object -Last 1 Name 
+        $outputBox.Text = Write "restauration de la sauvegarde du $($infoBackup.Name)"  }
+         }
+         #DSIIIIIIIIIIIIIIIIIIIIIIIIIIII
+         "Start Dark Soul III"
+         {cmd /c "‪D:\Profil\$env:username\Desktop\G8m8g\Dark Souls 3.lnk"
+         $outputBox.Text = write "lancement Dark Soul III"}
+         "Stop Dark Soul III"
+         {stop-process -Name DarkSoulsIII -Force}
+
+
+          #10
+         "Start Dead Cells"
+         { Start-Process "D:\Profil\$env:username\Desktop\G8m8g\Dead Cells.lnk"
+         $outputBox.text = "lancement DEAD CELLS"}
+         #11
+         "Stop DEAD-CELLS"
+         {Stop-Process -Name "deadcells"}
+         #12
+         "Save DEADCELLS"
+         {$sourceDEAD = "C:\Games-install\Dead Cells\save\*"
+          $destinationDEAD = "C:\Games-install\Dead Cells\BackUP-SAVE" 
+            Copy-Item -path $sourceDEAD -Destination $destinationDEAD -Recurse -Force                               
+         $outputBox.Text = Write "sauvegarde effectué le $dates"}                                 
+         #13
+         "BackUp save DEADCELLS"
+          {$SourceDEAD= "C:\Games-install\Dead Cells\BackUP-SAVE"                        
+           $destDEAD="C:\Games-install\Dead Cells\save"                                 
+           Copy-Item $ourceDEAD\* -Destination  $destDEAD -Force -Recurse       
+           $outputBox.Text = Write "restauration de la sauvegarde " }
+         
+
+
+
+
+ # non fonctionnel Win + alt + R
+    })
+#endregion Script Action
+
+
+ # Cacher la console PowerShell
+ <
+   # $windowcode = '[DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);'
+    #$asyncwindow = Add-Type -MemberDefinition $windowcode -name Win32ShowWindowAsync -namespace Win32Functions -PassThru ` $null = $asyncwindow::ShowWindowAsync((Get-Process -PID $pid).MainWindowHandle, 0) 
+>
+
+Add-Type -Name win -MemberDefinition ‘[DllImport(« user32.dll »)] public static extern bool ShowWindow(int handle, int state);’ `
+-Namespace native [native.win]::ShowWindow(([System.Diagnostics.Process]::GetCurrentProcess() | Get-Process).MainWindowHandle,0)
+
+cls
+# Validation, ajout des Fenetres
+$objForm.Controls.Add($objCombobox)
+$objForm.Controls.Add($outputBox)
+$objForm.Topmost = $True
+
+
+
+$objForm.Add_Shown({$objForm.Activate()})
+[void] $objForm.ShowDialog()
+
+# IMPORTANT clean up the form when done
+$objForm.Dispose()
